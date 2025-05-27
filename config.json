@@ -1,0 +1,10 @@
+{
+  "output_directory": "downloads",
+  "max_concurrent_downloads": 3,
+  "retry_attempts": 3,
+  "delay_between_requests": 1.0,
+  "audio_quality": "best",
+  "embed_metadata": true,
+  "skip_existing": true,
+  "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+} 
