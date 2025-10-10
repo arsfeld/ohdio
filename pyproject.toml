@@ -33,6 +33,7 @@ dependencies = [
     "Pillow>=9.0.0",
     "tqdm>=4.64.0",
     "colorama>=0.4.6",
+    "gradio>=4.44.0",
 ]
 
 [project.optional-dependencies]
@@ -49,7 +50,8 @@ dev = [
 ]
 
 [project.scripts]
-ohdio-downloader = "src.main:main"
+ohdio = "src.main:main"
+ohdio-test = "test_ohdio:main"
 
 [project.urls]
 Homepage = "https://github.com/username/ohdio-audiobook-downloader"

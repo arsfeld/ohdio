@@ -255,10 +255,12 @@ async def main():
     parser.add_argument("--category", help="Custom category URL to scrape")
     
     args = parser.parse_args()
-    
-    # Setup logging
+
+    # Setup logging with correct path for Docker/local
+    log_path = "/data/logs/scraper.log" if Path("/data/logs").exists() else "logs/scraper.log"
     setup_logging(
         log_level=args.log_level,
+        log_file=log_path,
         console_output=True,
         json_format=False
     )

@@ -1,0 +1,44 @@
+services:
+  ohdio-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ohdio-audiobook-downloader
+    ports:
+      - "7860:7860"
+    volumes:
+      # Persistent storage for downloaded audiobooks
+      - ohdio-downloads:/data/downloads
+      # Persistent storage for logs
+      - ohdio-logs:/data/logs
+      # Mount source code for hot-reloading
+      - ./src:/app/src
+      - ./app.py:/app/app.py
+      - ./main.py:/app/main.py
+      # Optional: Mount custom config (uncomment if needed)
+      - ./config.json:/app/config.json:ro
+    environment:
+      # Gradio configuration
+      - GRADIO_SERVER_PORT=7860
+      - GRADIO_SERVER_NAME=0.0.0.0
+      # Python configuration
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7860/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  # Named volumes for persistent data
+  ohdio-downloads:
+    driver: local
+  ohdio-logs:
+    driver: local
+
+# Optional: Add a network for more complex setups
+networks:
+  default:
+    name: ohdio-network

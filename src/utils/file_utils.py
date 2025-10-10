@@ -22,13 +22,13 @@ def sanitize_filename(filename: str, max_length: int = 255) -> str:
     # Remove or replace invalid characters
     # Invalid characters for most filesystems: < > : " | ? * \ /
     invalid_chars = r'[<>:"|?*\\\/]'
-    filename = re.sub(invalid_chars, '_', filename)
-    
+    filename = re.sub(invalid_chars, '-', filename)
+
     # Remove control characters
     filename = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', filename)
-    
-    # Replace multiple spaces/underscores with single ones
-    filename = re.sub(r'[ _]+', '_', filename)
+
+    # Replace multiple consecutive spaces with single space
+    filename = re.sub(r' +', ' ', filename)
     
     # Remove leading/trailing spaces and dots
     filename = filename.strip(' .')
