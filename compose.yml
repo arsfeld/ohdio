@@ -1,0 +1,51 @@
+services:
+  phoenix:
+    build:
+      context: .
+      dockerfile: Dockerfile.phoenix
+    container_name: ohdio-phoenix-dev
+    ports:
+      - "4001:4000"  # Phoenix web server (mapped to 4001 to avoid conflict)
+    volumes:
+      # Mount source code for hot-reloading
+      - .:/app
+      # Persistent storage for downloaded audiobooks
+      - ohdio-downloads:/data/downloads
+      # Persistent storage for logs
+      - ohdio-logs:/data/logs
+      # Persistent storage for SQLite database
+      - ohdio-db:/data/db
+    environment:
+      # Phoenix configuration
+      - PHX_HOST=localhost
+      - PORT=4000
+      - MIX_ENV=dev
+      # Database configuration (SQLite)
+      - DATABASE_PATH=/data/db/ohdio_dev.db
+      # Storage paths
+      - STORAGE_PATH=/data/downloads
+      - LOG_PATH=/data/logs
+    working_dir: /app
+    command: bash -c "mix deps.get && mix ecto.create && mix phx.server"
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  # Named volumes for persistent data
+  ohdio-downloads:
+    driver: local
+  ohdio-logs:
+    driver: local
+  ohdio-db:
+    driver: local
+
+networks:
+  default:
+    name: ohdio-phoenix-network
