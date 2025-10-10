@@ -1,3 +1,15 @@
+---
+title: OHdio Audiobook Downloader
+emoji: 🎧
+colorFrom: blue
+colorTo: purple
+sdk: gradio
+sdk_version: 4.44.0
+app_file: app.py
+pinned: false
+license: mit
+---
+
 # OHdio Audiobook Downloader
 
 A Python-based tool to scrape and download audiobooks from Radio-Canada's OHdio platform, specifically targeting the youth category (Jeunesse).
