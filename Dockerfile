@@ -44,19 +44,17 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Copy application code
 COPY --chown=ohdio:ohdio . .
 
-# Create default config if it doesn't exist
-RUN if [ ! -f config.json ]; then \
-    echo '{ \
-        "output_directory": "/data/downloads", \
-        "max_concurrent_downloads": 3, \
-        "retry_attempts": 3, \
-        "delay_between_requests": 1.0, \
-        "audio_quality": "best", \
-        "embed_metadata": true, \
-        "skip_existing": true, \
-        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
-    }' > config.json; \
-    fi
+# Create Docker-specific config (overwrites repo config.json)
+RUN echo '{ \
+    "output_directory": "/data/downloads", \
+    "max_concurrent_downloads": 3, \
+    "retry_attempts": 3, \
+    "delay_between_requests": 1.0, \
+    "audio_quality": "best", \
+    "embed_metadata": true, \
+    "skip_existing": true, \
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
+}' > config.json
 
 # Switch to non-root user
 USER ohdio

@@ -16,7 +16,7 @@ services:
       - ./app.py:/app/app.py
       - ./main.py:/app/main.py
       # Optional: Mount custom config (uncomment if needed)
-      - ./config.json:/app/config.json:ro
+      # - ./config.json:/app/config.json:ro
     environment:
       # Gradio configuration
       - GRADIO_SERVER_PORT=7860

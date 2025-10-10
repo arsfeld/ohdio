@@ -1,5 +1,5 @@
 {
-  "output_directory": "/data/downloads",
+  "output_directory": "downloads",
   "max_concurrent_downloads": 3,
   "retry_attempts": 3,
   "delay_between_requests": 1.0,

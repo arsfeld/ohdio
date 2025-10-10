@@ -28,9 +28,16 @@ class Config:
             raise ValueError("retry_attempts must be non-negative")
         if self.delay_between_requests < 0:
             raise ValueError("delay_between_requests must be non-negative")
-        
+
         # Ensure output directory exists
-        Path(self.output_directory).mkdir(parents=True, exist_ok=True)
+        try:
+            Path(self.output_directory).mkdir(parents=True, exist_ok=True)
+        except PermissionError:
+            # If we can't create the directory (e.g., /data in HF Spaces),
+            # try using a relative path in the current directory
+            logging.warning(f"Cannot create directory {self.output_directory}, using relative path")
+            self.output_directory = "downloads"
+            Path(self.output_directory).mkdir(parents=True, exist_ok=True)
     
     @classmethod
     def from_file(cls, config_file: str) -> 'Config':
