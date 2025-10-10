@@ -134,9 +134,9 @@ class PlaylistExtractor:
             logger.debug(f"Calling Radio-Canada API for media ID: {media_id}")
             response = self.session.get(self.api_base_url, params=api_params, timeout=10)
             response.raise_for_status()
-            
+
             data = response.json()
-            logger.debug(f"API response: {json.dumps(data, indent=2)}")
+            logger.info(f"API response for media ID {media_id}: {json.dumps(data, indent=2)}")
             
             # Look for the m3u8 URL in the response
             if 'url' in data:
