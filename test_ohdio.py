@@ -173,37 +173,46 @@ class OHdioTester:
 
     async def test_playlist_extraction(self, book_url: str) -> None:
         """Test playlist URL extraction from a single audiobook page.
-        
+
         Args:
             book_url: URL of audiobook page to test
         """
         self.logger.info(f"Testing playlist extraction for: {book_url}")
-        
+
         try:
-            # Extract just the playlist URL
+            # First fetch the page HTML
             from src.scraper.playlist_extractor import PlaylistExtractor
-            
+            from src.utils.network_utils import safe_request
+
+            self.logger.info("Fetching page HTML...")
+            html_content = await safe_request(book_url)
+
+            if not html_content:
+                self.logger.error("❌ Failed to fetch page content")
+                return
+
+            # Extract the playlist URL
             extractor = PlaylistExtractor()
-            playlist_url = await extractor.extract_playlist_url(book_url)
-            
+            playlist_url = extractor.extract_playlist_url(html_content, book_url)
+
             if playlist_url:
                 self.logger.info(f"✓ Playlist URL found: {playlist_url}")
-                
+
                 # Test if the playlist is accessible
                 accessible = await self.downloader.check_url_accessibility(playlist_url)
                 self.logger.info(f"✓ Playlist accessible: {accessible}")
-                
+
                 if accessible:
                     # Get basic info about the media
                     media_info = self.downloader.get_media_info(playlist_url)
                     if media_info:
                         duration = media_info.get('duration', 'unknown')
                         self.logger.info(f"✓ Media duration: {duration} seconds")
-                
+
                 self.logger.info("✅ Playlist extraction test completed successfully")
             else:
                 self.logger.error("❌ No playlist URL found")
-                
+
         except Exception as e:
             self.logger.error(f"❌ Playlist extraction test failed: {e}")
 
