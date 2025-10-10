@@ -72,6 +72,15 @@ OHdio now includes a web interface powered by Gradio! The web UI provides:
 - 📊 **Statistics Dashboard**: View download stats and storage usage
 - 🔄 **Smart Caching**: Automatically skips already downloaded files
 
+### ⚠️ Important Note about Hugging Face Spaces
+
+Radio-Canada content is **geo-restricted to Canada**. The public Hugging Face Space runs on US servers and **cannot download OHdio audiobooks** due to this restriction. However, it can still download from other yt-dlp supported sites (YouTube, Vimeo, etc.).
+
+For OHdio audiobooks, please run the application:
+- **Locally** on your computer (if you're in Canada)
+- **On a VPS/server** located in Canada
+- **Via Docker** on your own infrastructure
+
 ### Running the Web UI Locally
 
 ```bash

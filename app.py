@@ -460,6 +460,18 @@ initialize_downloader()
 with gr.Blocks(title="OHdio Audiobook Downloader", theme=gr.themes.Soft()) as app:
     gr.Markdown("# 🎧 OHdio Audiobook Downloader")
 
+    # Detect if running on HF Spaces
+    import os
+    if os.getenv("SPACE_ID"):
+        gr.Markdown("""
+        ⚠️ **Geo-Restriction Notice**: Radio-Canada content is geo-restricted to Canada.
+        This Space runs on US servers and **cannot download OHdio audiobooks**.
+        However, you can still download from YouTube, Vimeo, and other yt-dlp supported sites!
+
+        To download OHdio audiobooks, please run this app locally or on a Canadian server.
+        See [installation instructions](https://github.com/arsfeld/ohdio) for details.
+        """, elem_classes=["warning-box"])
+
     with gr.Row():
         with gr.Column(scale=3):
             with gr.Tabs() as tabs:
