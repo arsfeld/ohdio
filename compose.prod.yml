@@ -4,9 +4,7 @@
 
 services:
   phoenix:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/arsfeld/ohdio:latest
     container_name: ohdio-phoenix
     ports:
       - "4000:4000"  # Phoenix web server
