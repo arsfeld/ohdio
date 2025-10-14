@@ -1,0 +1,76 @@
+# Phoenix Production Dockerfile for OHdio
+# Based on Elixir 1.17 with Erlang/OTP 27
+
+FROM hexpm/elixir:1.17.3-erlang-27.1.2-debian-bookworm-20241016-slim
+
+# Install dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Build essentials
+    build-essential \
+    git \
+    curl \
+    # Node.js for Phoenix assets (via NodeSource)
+    ca-certificates \
+    gnupg \
+    # SQLite3
+    sqlite3 \
+    libsqlite3-dev \
+    # FFmpeg for audio processing
+    ffmpeg \
+    # yt-dlp dependencies
+    python3 \
+    python3-pip \
+    # gosu for user switching (linuxserver.io convention)
+    gosu \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 20.x (LTS)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install yt-dlp
+RUN pip3 install --no-cache-dir --break-system-packages yt-dlp
+
+# Install Hex and Rebar
+RUN mix local.hex --force && \
+    mix local.rebar --force
+
+# Create app directory
+WORKDIR /app
+
+# Create directories for config (linuxserver.io convention)
+# User/group and permissions will be set by entrypoint
+RUN mkdir -p /app /config/db /config/logs /config/downloads
+
+# Copy mix files
+COPY mix.exs mix.lock ./
+
+# Set build-time environment
+ARG MIX_ENV=prod
+ENV MIX_ENV=${MIX_ENV}
+
+# Install mix dependencies
+RUN mix deps.get --only $MIX_ENV
+RUN mix deps.compile
+
+# Copy application code
+COPY config ./config
+COPY priv ./priv
+COPY lib ./lib
+COPY assets ./assets
+
+# Compile the application and assets
+RUN mix compile
+RUN mix assets.deploy
+
+# Set runtime environment variables
+ENV ERL_AFLAGS="-kernel shell_history enabled" \
+    LANG=C.UTF-8 \
+    TERM=xterm
+
+# Expose Phoenix port
+EXPOSE 4000
+
+# Run database setup and start server
+CMD ["/bin/sh", "-c", "mix ecto.create && mix ecto.migrate && mix phx.server"]

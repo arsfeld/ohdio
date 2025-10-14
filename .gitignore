@@ -104,5 +104,4 @@ __pycache__/
 
 # fly.io deployment files (private)
 fly.toml
-Dockerfile.prod
 .fly/
