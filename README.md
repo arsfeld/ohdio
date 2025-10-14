@@ -1,205 +1,266 @@
----
-title: OHdio Audiobook Downloader
-emoji: 🎧
-colorFrom: blue
-colorTo: purple
-sdk: gradio
-sdk_version: 4.44.0
-app_file: app.py
-pinned: false
-license: mit
----
-
 # OHdio Audiobook Downloader
 
-A Python-based tool to scrape and download audiobooks from Radio-Canada's OHdio platform, specifically targeting the youth category (Jeunesse).
+A locally-running Phoenix/Elixir web application for creating personal backups of audiobooks from the OHdio platform for offline listening only. **Not intended for redistribution of any files.**
 
-## Features
+This is a self-hosted application that runs entirely on your own machine - it is not a cloud service or hosted platform.
 
-- **Web UI**: Modern Gradio interface for downloading and managing audiobooks
-- **Universal URL Support**: Download from OHdio URLs or any yt-dlp supported site (YouTube, Vimeo, SoundCloud, and 1000+ more)
-- **Web Scraping**: Automatically discovers audiobooks from the OHdio Jeunesse category
-- **Playlist Detection**: Extracts m3u8 playlist URLs from audiobook pages
-- **High-Quality Downloads**: Uses yt-dlp to download audio content as MP3 files
-- **Metadata Embedding**: Automatically embeds book metadata including title, author, and artwork
-- **Smart Caching**: Skips already downloaded files to avoid re-downloading
-- **File Browser**: Browse, search, play, and download audiobooks from the web interface
-- **Docker Support**: Easy self-hosting with Docker and persistent volumes
-- **Error Handling**: Robust error handling and retry mechanisms
-- **Logging**: Comprehensive logging for debugging and monitoring
-
-## Status
-
-✅ **Complete** - The OHdio audiobook downloader is fully functional!
-
-### Features Implemented
-- ✅ Complete project structure and documentation
-- ✅ Configuration system with JSON support
-- ✅ Structured logging with JSON output
-- ✅ Robust file and network utilities
-- ✅ Multi-strategy playlist URL extraction
-- ✅ Category page scraping with multiple parsing methods
-- ✅ Individual audiobook metadata extraction
-- ✅ Full yt-dlp integration with progress tracking
-- ✅ Comprehensive metadata embedding with artwork
-- ✅ Complete download pipeline orchestration
-- ✅ Error handling and retry logic with exponential backoff
-- ✅ Concurrent processing with rate limiting
-- ✅ Progress tracking and statistics
-- ✅ CLI interface with multiple modes
-
-## Requirements
-
-- Python 3.8+
-- uv (modern Python package manager)
-- Required Python packages (see pyproject.toml)
+![Phoenix](https://img.shields.io/badge/Phoenix-1.8-orange)
+![Elixir](https://img.shields.io/badge/Elixir-1.17-purple)
+![License](https://img.shields.io/badge/license-MIT-blue)
 
 ## Quick Start
 
-1. Clone the repository
-2. Install dependencies: `uv sync`
-3. Test the setup: `uv run python test_setup.py`
-4. Test functionality: `ohdio-test --use-defaults` (or `./test_ohdio.py --use-defaults`)
-5. Download a single audiobook: `ohdio --url https://ici.radio-canada.ca/ohdio/livres-audio/105729/augustine`
-6. Download all audiobooks: `ohdio`
+### Using Docker (Recommended)
 
-## Web UI (Gradio)
-
-OHdio now includes a web interface powered by Gradio! The web UI provides:
-- 🎯 **Download Interface**: Download single audiobooks or entire categories
-- 🌐 **Universal Downloads**: Paste any OHdio URL or any yt-dlp supported URL (YouTube, Vimeo, etc.)
-- 📂 **File Browser**: Browse, search, play, and download audiobooks
-- 📊 **Statistics Dashboard**: View download stats and storage usage
-- 🔄 **Smart Caching**: Automatically skips already downloaded files
-
-### ⚠️ Important Note about Hugging Face Spaces
-
-Radio-Canada content is **geo-restricted to Canada**. The public Hugging Face Space runs on US servers and **cannot download OHdio audiobooks** due to this restriction. However, it can still download from other yt-dlp supported sites (YouTube, Vimeo, etc.).
-
-For OHdio audiobooks, please run the application:
-- **Locally** on your computer (if you're in Canada)
-- **On a VPS/server** located in Canada
-- **Via Docker** on your own infrastructure
-
-### Running the Web UI Locally
+The easiest way to run OHdio is with Docker Compose:
 
 ```bash
-# Install dependencies (includes Gradio)
-uv sync
+# Start the application
+./dc up -d
 
-# Run the web interface
-uv run python app.py
+# View logs
+./dc logs -f
+
+# Stop the application
+./dc down
 ```
 
-The web interface will be available at `http://localhost:7860`
+The web interface will be available at `http://localhost:4000`
 
-### Running with Docker
+### Local Development
 
-The easiest way to self-host is using Docker:
+**Prerequisites:**
+- Elixir 1.17+
+- Erlang/OTP 27+
+- Node.js 18+ (for asset compilation)
+
+**Setup:**
 
 ```bash
-# Build and run with docker compose (recommended)
-docker compose up -d
+# Install dependencies
+mix deps.get
 
-# Or build manually
-docker build -t ohdio-downloader .
-docker run -p 7860:7860 -v ohdio-downloads:/data/downloads ohdio-downloader
+# Create and migrate database
+mix ecto.create
+mix ecto.migrate
+
+# Install JavaScript dependencies and build assets
+cd assets && npm install && cd ..
+mix assets.build
+
+# Start the Phoenix server
+mix phx.server
 ```
 
-Access the web interface at `http://localhost:7860`
+Visit `http://localhost:4000` to access the application.
 
-**Docker Features:**
-- ✅ Persistent storage for downloads (survives container restarts)
-- ✅ Automatic restart on failure
-- ✅ Health checks
-- ✅ Optimized multi-stage build
-- ✅ Non-root user for security
+## Using the Application
 
-**Managing Docker Volumes:**
+### Downloading Audiobooks
+
+1. **Single Audiobook**: Paste an OHdio audiobook URL in the input field and click "Add to Queue"
+2. **Category Scrape**: Paste a category URL to discover and queue all audiobooks in that category
+3. **Monitor Progress**: Watch downloads process in real-time on the Home page
+
+### Supported URL Types
+
+- **Audiobook URLs**: `https://ici.radio-canada.ca/ohdio/livres-audio/[id]/[title]`
+- **Category URLs**: `https://ici.radio-canada.ca/ohdio/categories/[id]/[name]`
+
+### Library Browser
+
+- Browse your downloaded audiobooks
+- Search by title or author
+- Play audiobooks directly in the browser
+- View cover art and metadata
+- Toggle between card and list views
+
+## Docker Helper Script
+
+The `./dc` script simplifies Docker operations:
 
 ```bash
-# View downloaded files
-docker compose exec ohdio-web ls -lh /data/downloads
+# Docker Compose commands
+./dc up -d              # Start services in background
+./dc down               # Stop and remove containers
+./dc logs -f            # Follow logs
+./dc ps                 # List containers
 
-# Backup downloads
-docker run --rm -v ohdio-downloads:/data -v $(pwd):/backup alpine tar czf /backup/ohdio-backup.tar.gz /data
-
-# Access logs
-docker compose logs -f ohdio-web
-
-# Stop the service
-docker compose down
-
-# Stop and remove volumes (deletes all downloads!)
-docker compose down -v
+# Run commands inside the Phoenix container
+./dc mix test           # Run tests
+./dc mix ecto.migrate   # Run migrations
+./dc iex -S mix         # Start IEx console
+./dc bash               # Open bash shell
 ```
 
-## CLI Usage Examples
+## Development
 
-The application can be run in three ways:
-- **Recommended**: `ohdio` (command installed by uv)
-- **Direct execution**: `./main.py` (requires executable permission)
-- **Via uv**: `uv run python main.py` (always works)
+### Running Tests
 
 ```bash
-# Download a single audiobook
-ohdio --url https://ici.radio-canada.ca/ohdio/livres-audio/105729/augustine
-# or: ./main.py --url https://ici.radio-canada.ca/ohdio/livres-audio/105729/augustine
+# Run all tests
+mix test
 
-# Download all audiobooks from the default Jeunesse category
-ohdio
-# or: ./main.py
+# Run specific test file
+mix test test/ohdio/scraper/audiobook_scraper_test.exs
 
-# Use custom configuration
-ohdio --config my_config.json --log-level DEBUG
-
-# Alternative: use uv run (no installation needed)
-uv run python main.py --url https://ici.radio-canada.ca/ohdio/livres-audio/105729/augustine
+# Run with coverage
+mix test --cover
 ```
 
-## Testing
-
-Use the dedicated test script to verify functionality without downloading.
-
-The test script can be run in three ways:
-- **Recommended**: `ohdio-test` (command installed by uv)
-- **Direct execution**: `./test_ohdio.py` (requires executable permission)
-- **Via uv**: `uv run python test_ohdio.py` (always works)
+### Code Quality
 
 ```bash
-# Run all tests with default URLs
-ohdio-test --use-defaults
-# or: ./test_ohdio.py --use-defaults
+# Run formatter, credo, and tests
+mix precommit
 
-# Test category discovery (shows how many audiobooks found)
-ohdio-test --test-category https://ici.radio-canada.ca/ohdio/categories/1003592/jeunesse
+# Format code
+mix format
 
-# Test skip existing logic (shows what would be downloaded vs skipped)
-ohdio-test --test-skip https://ici.radio-canada.ca/ohdio/categories/1003592/jeunesse
-
-# Test single URL extraction
-ohdio-test --test-url https://ici.radio-canada.ca/ohdio/livres-audio/105729/augustine
-
-# Test playlist extraction only
-ohdio-test --test-playlist https://ici.radio-canada.ca/ohdio/livres-audio/105729/augustine
-
-# Test complete pipeline (dry run)
-ohdio-test --test-pipeline https://ici.radio-canada.ca/ohdio/livres-audio/105729/augustine
-
-# Alternative: use uv run (no installation needed)
-uv run python test_ohdio.py --use-defaults
+# Run static analysis
+mix credo
 ```
 
-## Documentation
+### Database Management
 
-- [Product Guide](docs/PRODUCT_GUIDE.md) - Complete feature overview and usage instructions
-- [Development Guide](docs/DEVELOPMENT_GUIDE.md) - Technical implementation details and development setup
-- [Commit Guidelines](docs/COMMIT_GUIDELINES.md) - Git commit message standards with Angular convention and emojis
+```bash
+# Create database
+mix ecto.create
 
-## Legal Notice
+# Run migrations
+mix ecto.migrate
 
-This tool is for educational purposes only. Please respect copyright laws and Radio-Canada's terms of service. Only download content you have the right to access.
+# Rollback migration
+mix ecto.rollback
+
+# Reset database (drop, create, migrate)
+mix ecto.reset
+
+# Generate migration
+mix ecto.gen.migration add_field_to_table
+```
+
+### Helper Scripts
+
+The project includes several helper scripts for debugging and management:
+
+- `check_job_errors.exs` - Check for failed Oban jobs
+- `check_queue_state.exs` - View current queue state
+- `enqueue_missing_downloads.exs` - Re-queue items that weren't processed
+- `reset_download_queue.exs` - Reset all queue items to queued state
+- `retry_failed_downloads.exs` - Retry failed downloads
+
+Run scripts with: `./dc mix run <script_name.exs>`
+
+## Architecture
+
+### Tech Stack
+
+- **Phoenix Framework**: Web framework and LiveView for real-time UI
+- **Elixir**: Functional programming language for concurrent operations
+- **Ecto**: Database wrapper and query generator
+- **SQLite**: Embedded database for easy deployment
+- **Oban**: Reliable background job processing
+- **Req**: Modern HTTP client for scraping
+- **Floki**: HTML parsing for web scraping
+- **daisyUI**: Beautiful Tailwind CSS components
+
+### Project Structure
+
+```
+lib/
+├── ohdio/
+│   ├── application.ex          # Application supervisor
+│   ├── repo.ex                 # Ecto repository
+│   ├── library/                # Library context (Audiobooks)
+│   ├── downloads/              # Downloads context (Queue)
+│   ├── scraper/                # Web scraping logic
+│   └── workers/                # Oban background workers
+├── ohdio_web/
+│   ├── controllers/            # Phoenix controllers
+│   ├── live/                   # LiveView modules
+│   ├── components/             # Reusable components
+│   └── router.ex               # Route definitions
+priv/
+├── repo/migrations/            # Database migrations
+└── static/                     # Static assets
+test/                           # Test files
+```
+
+## Configuration
+
+Configuration files are in `config/`:
+
+- `config.exs` - Base configuration
+- `dev.exs` - Development environment
+- `test.exs` - Test environment
+- `runtime.exs` - Runtime configuration
+
+Key configuration options:
+
+```elixir
+# Database
+config :ohdio, Ohdio.Repo,
+  database: "ohdio_dev.db",
+  pool_size: 5
+
+# Oban (background jobs)
+config :ohdio, Oban,
+  engine: Oban.Engines.Lite,
+  queues: [default: 10, downloads: 1, scraping: 2]
+
+# Phoenix Endpoint
+config :ohdio, OhdioWeb.Endpoint,
+  http: [port: 4000],
+  secret_key_base: "..."
+```
+
+## Deployment
+
+### Docker Compose
+
+The included `compose.yml` sets up the complete application:
+
+```yaml
+services:
+  phoenix:
+    build: .
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./downloads:/app/downloads
+      - ./ohdio_dev.db:/app/ohdio_dev.db
+    environment:
+      - MIX_ENV=dev
+      - SECRET_KEY_BASE=...
+```
+
+### Environment Variables
+
+- `MIX_ENV` - Application environment (dev/test/prod)
+- `SECRET_KEY_BASE` - Phoenix secret key (generate with `mix phx.gen.secret`)
+- `DATABASE_PATH` - Path to SQLite database file
+- `PHX_HOST` - Hostname for the application
+- `PORT` - HTTP port (default: 4000)
+
+## ⚠️ Important Notes
+
+### Legal Notice
+
+This tool is intended for personal backup purposes only to enable offline listening of content you have the right to access. **Do not redistribute any downloaded files.** Please respect copyright laws and terms of service.
+
+## Contributing
+
+Contributions are welcome! Please see the [Development Guide](docs/DEVELOPMENT_GUIDE.md) for details.
+
+## Task Management
+
+This project uses [Backlog.md](https://github.com/crazywolf132/backlog.md) for task management. View tasks in `backlog/tasks/`.
 
 ## License
 
-MIT License - see LICENSE file for details 
+MIT License - see LICENSE file for details
+
+## Archive
+
+The original Python implementation has been archived in `archive/python_original/`. See that directory for the legacy codebase.
