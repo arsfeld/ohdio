@@ -9,24 +9,23 @@ services:
     volumes:
       # Mount source code for hot-reloading
       - .:/app
-      # Persistent storage for downloaded audiobooks
-      - ohdio-downloads:/data/downloads
-      # Persistent storage for logs
-      - ohdio-logs:/data/logs
-      # Persistent storage for SQLite database
-      - ohdio-db:/data/db
+      # Single config directory for all persistent data (linuxserver.io convention)
+      - ./config:/config
     environment:
       # Phoenix configuration
       - PHX_HOST=localhost
       - PORT=4000
       - MIX_ENV=dev
+      # User/Group IDs (linuxserver.io convention)
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
       # Database configuration (SQLite)
-      - DATABASE_PATH=/data/db/ohdio_dev.db
+      - DATABASE_PATH=/config/db/ohdio_dev.db
       # Storage paths
-      - STORAGE_PATH=/data/downloads
-      - LOG_PATH=/data/logs
+      - STORAGE_PATH=/config/downloads
+      - LOG_PATH=/config/logs
       # Download configuration
-      - DOWNLOAD_DIR=/data/downloads
+      - DOWNLOAD_DIR=/config/downloads
       - MAX_CONCURRENT_DOWNLOADS=3
       - MIN_DISK_SPACE_MB=100
       - MAX_FILE_SIZE_MB=0
@@ -41,15 +40,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-
-volumes:
-  # Named volumes for persistent data
-  ohdio-downloads:
-    driver: local
-  ohdio-logs:
-    driver: local
-  ohdio-db:
-    driver: local
 
 networks:
   default:

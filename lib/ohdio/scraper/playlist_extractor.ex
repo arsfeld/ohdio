@@ -260,6 +260,7 @@ defmodule Ohdio.Scraper.PlaylistExtractor do
 
       :not_found ->
         Logger.warning("No m3u8 URL found in API response for media ID: #{media_id}")
+        Logger.warning("Full API response for debugging: #{inspect(data, pretty: true, limit: :infinity)}")
         {:error, :m3u8_not_found}
     end
   end

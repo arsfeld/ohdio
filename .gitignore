@@ -94,3 +94,15 @@ __pycache__/
 # Application logs and downloads
 /logs/
 /downloads/
+
+# Runtime config directory (linuxserver.io convention)
+/config/
+
+# Compiled assets in subdirectories
+/priv/static/assets/js/
+/priv/static/assets/css/
+
+# fly.io deployment files (private)
+fly.toml
+Dockerfile.prod
+.fly/

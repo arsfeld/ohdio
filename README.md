@@ -218,31 +218,106 @@ config :ohdio, OhdioWeb.Endpoint,
 
 ## Deployment
 
-### Docker Compose
+### Docker Compose (linuxserver.io conventions)
 
-The included `compose.yml` sets up the complete application:
+OHdio follows [linuxserver.io](https://www.linuxserver.io/) conventions for better portability and easier backups. All persistent data is stored in a single `/config` directory with PUID/PGID support for proper file permissions.
 
-```yaml
-services:
-  phoenix:
-    build: .
-    ports:
-      - "4000:4000"
-    volumes:
-      - ./downloads:/app/downloads
-      - ./ohdio_dev.db:/app/ohdio_dev.db
-    environment:
-      - MIX_ENV=dev
-      - SECRET_KEY_BASE=...
+#### Development Setup
+
+The included `compose.yml` is configured for development with hot-reloading:
+
+```bash
+# Start development environment
+./dc up -d
+
+# Access at http://localhost:4001
 ```
+
+All persistent data is stored in `./config/` in your project directory:
+- `./config/db/` - SQLite database
+- `./config/downloads/` - Downloaded audiobooks
+- `./config/logs/` - Application logs
+
+#### Production Deployment
+
+For production, use `compose.prod.yml` as a template:
+
+```bash
+# 1. Copy and customize the production compose file
+cp compose.prod.yml docker-compose.yml
+
+# 2. Edit the file and set:
+#    - Your domain in PHX_HOST
+#    - SECRET_KEY_BASE (generate with: mix phx.gen.secret)
+#    - PUID/PGID to match your host user (run: id)
+#    - Volume path (e.g., /opt/ohdio/config:/config)
+
+# 3. Start the service
+docker compose up -d
+```
+
+**Important Production Settings:**
+
+1. **Data Directory**: Change the bind mount to your preferred location:
+   ```yaml
+   volumes:
+     - /opt/ohdio/config:/config  # Host path : Container path
+   ```
+
+2. **User Permissions**: Set PUID/PGID to match your host user:
+   ```bash
+   # Find your user/group ID
+   id
+   # Output: uid=1000(username) gid=1000(username)
+
+   # Set in compose file
+   environment:
+     - PUID=1000
+     - PGID=1000
+   ```
+
+3. **Secret Key**: Generate and set a secure secret:
+   ```bash
+   docker run --rm hexpm/elixir:1.17.3-erlang-27.1.2-debian-bookworm-20241016-slim \
+     mix phx.gen.secret
+   ```
 
 ### Environment Variables
 
-- `MIX_ENV` - Application environment (dev/test/prod)
+#### Required
 - `SECRET_KEY_BASE` - Phoenix secret key (generate with `mix phx.gen.secret`)
-- `DATABASE_PATH` - Path to SQLite database file
-- `PHX_HOST` - Hostname for the application
+- `PHX_HOST` - Your domain name (e.g., audiobooks.example.com)
+
+#### User Permissions (linuxserver.io convention)
+- `PUID` - User ID for file ownership (default: 1000)
+- `PGID` - Group ID for file ownership (default: 1000)
+
+#### Application Settings
+- `MIX_ENV` - Application environment (dev/prod)
 - `PORT` - HTTP port (default: 4000)
+- `DATABASE_PATH` - SQLite database path (default: /config/db/ohdio_prod.db)
+- `STORAGE_PATH` - Download storage path (default: /config/downloads)
+- `LOG_PATH` - Application logs path (default: /config/logs)
+
+#### Optional
+- `POOL_SIZE` - Database connection pool size (default: 10)
+- `MAX_CONCURRENT_DOWNLOADS` - Concurrent downloads (default: 3)
+- `MIN_DISK_SPACE_MB` - Minimum free disk space (default: 1000)
+
+### Backup and Migration
+
+With the linuxserver.io structure, backing up is simple:
+
+```bash
+# Backup all data
+tar -czf ohdio-backup.tar.gz /opt/ohdio/config/
+
+# Restore
+tar -xzf ohdio-backup.tar.gz -C /
+
+# Or migrate to new host
+rsync -av /opt/ohdio/config/ newhost:/opt/ohdio/config/
+```
 
 ## ⚠️ Important Notes
 

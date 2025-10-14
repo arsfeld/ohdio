@@ -22,6 +22,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     # inotify-tools for Phoenix live reload
     inotify-tools \
+    # gosu for user switching (linuxserver.io convention)
+    gosu \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js 20.x (LTS)
@@ -42,22 +44,27 @@ RUN mix archive.install hex phx_new --force
 # Create app directory
 WORKDIR /app
 
-# Create non-root user for development
-RUN useradd -m -u 1000 -s /bin/bash dev && \
-    mkdir -p /app /data/downloads /data/logs /data/db && \
-    chown -R dev:dev /app /data
+# Create directories for config (linuxserver.io convention)
+# User/group and permissions will be set by entrypoint
+RUN mkdir -p /app /config/db /config/logs /config/downloads
 
-# Switch to dev user
-USER dev
+# Copy entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Set environment variables
 ENV MIX_ENV=dev \
     ERL_AFLAGS="-kernel shell_history enabled" \
     LANG=C.UTF-8 \
-    TERM=xterm
+    TERM=xterm \
+    PUID=1000 \
+    PGID=1000
 
 # Expose Phoenix port
 EXPOSE 4000
+
+# Use entrypoint for PUID/PGID support
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 # Default command (will be overridden by docker-compose)
 CMD ["mix", "phx.server"]

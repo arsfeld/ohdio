@@ -3,14 +3,14 @@
 .gitignore
 .gitattributes
 
-# Python cache and compiled files
+# Python cache and compiled files (legacy)
 __pycache__
 *.py[cod]
 *$py.class
 *.so
 .Python
 
-# Virtual environments
+# Virtual environments (legacy)
 venv/
 env/
 ENV/
@@ -19,6 +19,15 @@ ENV/
 dist/
 build/
 
+# Elixir build artifacts
+_build/
+deps/
+*.ez
+
+# Elixir temporary files
+*.beam
+*.plt
+
 # IDE and editor files
 .vscode/
 .idea/
@@ -26,17 +35,21 @@ build/
 *.swo
 *~
 .DS_Store
+.elixir_ls/
+.lexical/
 
-# Documentation (not needed in container)
+# Documentation and project management
 docs/
+backlog/
+archive/
+scripts/
 *.md
 !README.md
-!README_HF.md
 
 # Test files
 tests/
-test_*.py
-*_test.py
+test/
+*_test.exs
 .pytest_cache/
 .coverage
 htmlcov/
@@ -46,6 +59,8 @@ htmlcov/
 # Logs and data (will be in volumes)
 logs/
 downloads/
+config/downloads/
+priv/static/assets/
 *.log
 
 # Docker files (don't need these inside the container)

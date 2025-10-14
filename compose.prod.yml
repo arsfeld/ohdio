@@ -1,0 +1,76 @@
+# Production Docker Compose configuration for OHdio
+# This file demonstrates a production deployment using bind mounts
+# following linuxserver.io conventions
+
+services:
+  phoenix:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ohdio-phoenix
+    ports:
+      - "4000:4000"  # Phoenix web server
+    volumes:
+      # Bind mount for persistent data (linuxserver.io convention)
+      # Change this to your desired data directory
+      - /opt/ohdio/config:/config
+    environment:
+      # Phoenix configuration
+      - PHX_HOST=your-domain.com
+      - PORT=4000
+      - MIX_ENV=prod
+      - PHX_SERVER=true
+
+      # User/Group IDs (linuxserver.io convention)
+      # Set these to match your host user for proper file permissions
+      - PUID=1000
+      - PGID=1000
+
+      # Database configuration (SQLite)
+      - DATABASE_PATH=/config/db/ohdio_prod.db
+
+      # Storage paths
+      - STORAGE_PATH=/config/downloads
+      - LOG_PATH=/config/logs
+
+      # Download configuration
+      - DOWNLOAD_DIR=/config/downloads
+      - MAX_CONCURRENT_DOWNLOADS=3
+      - MIN_DISK_SPACE_MB=1000
+      - MAX_FILE_SIZE_MB=0
+
+      # Security - REQUIRED: Generate with `mix phx.gen.secret`
+      - SECRET_KEY_BASE=CHANGE_ME_GENERATE_WITH_MIX_PHX_GEN_SECRET
+
+      # Database pool size
+      - POOL_SIZE=10
+    working_dir: /app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    # Resource limits (adjust as needed)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 512M
+
+networks:
+  default:
+    name: ohdio-phoenix-network
+
+# Volume notes:
+# - The /config directory is bind-mounted from your host
+# - All persistent data (database, logs, downloads) is stored under /config
+# - Easy to backup: just backup /opt/ohdio/config
+# - PUID/PGID ensures files are owned by your host user
