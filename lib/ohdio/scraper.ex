@@ -175,4 +175,15 @@ defmodule Ohdio.Scraper do
   """
   @spec ytdlp_url?(String.t()) :: boolean()
   defdelegate ytdlp_url?(url), to: UrlDetector
+
+  @doc """
+  Check if a URL is a Spotify URL (track, playlist, or album).
+
+  ## Examples
+
+      true = Scraper.spotify_url?("https://open.spotify.com/track/...")
+      false = Scraper.spotify_url?("https://youtube.com/...")
+  """
+  @spec spotify_url?(String.t()) :: boolean()
+  defdelegate spotify_url?(url), to: UrlDetector
 end

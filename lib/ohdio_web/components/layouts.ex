@@ -36,34 +36,32 @@ defmodule OhdioWeb.Layouts do
   def app(assigns) do
     ~H"""
     <header class="navbar px-4 sm:px-6 lg:px-8">
-      <div class="flex-1">
-        <a href="/" class="flex-1 flex w-fit items-center gap-2">
-          <img src={~p"/images/logo.svg"} width="36" />
-          <span class="text-sm font-semibold">v{Application.spec(:phoenix, :vsn)}</span>
+      <div class="flex-1 flex items-center gap-6">
+        <a href="/" class="flex items-center gap-2 hover:opacity-80 transition-opacity">
+          <.icon name="hero-musical-note" class="size-8 text-primary" />
+          <span class="text-xl font-bold">OHdio</span>
         </a>
-      </div>
-      <div class="flex-none">
-        <ul class="flex flex-column px-1 space-x-4 items-center">
+        <ul class="flex space-x-1 items-center">
           <li>
-            <a href={~p"/"} class="btn btn-ghost">
-              <.icon name="hero-queue-list" class="size-5" />
-              <span class="hidden sm:inline">Queue</span>
+            <a href={~p"/"} class="btn btn-ghost btn-sm">
+              <.icon name="hero-home" class="size-4" />
+              <span class="hidden sm:inline">Home</span>
             </a>
           </li>
           <li>
-            <a href={~p"/library"} class="btn btn-ghost">
-              <.icon name="hero-book-open" class="size-5" />
+            <a href={~p"/library"} class="btn btn-ghost btn-sm">
+              <.icon name="hero-book-open" class="size-4" />
               <span class="hidden sm:inline">Library</span>
             </a>
           </li>
-          <li>
-            <.theme_toggle />
-          </li>
         </ul>
+      </div>
+      <div class="flex-none">
+        <.theme_toggle />
       </div>
     </header>
 
-    <main class="px-4 py-20 sm:px-6 lg:px-8">
+    <main class="px-4 py-6 sm:px-6 lg:px-8">
       <div class="mx-auto max-w-7xl space-y-4">
         {render_slot(@inner_block)}
       </div>

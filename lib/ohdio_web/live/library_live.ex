@@ -120,7 +120,6 @@ defmodule OhdioWeb.LibraryLive do
     {:noreply, assign(socket, :view_mode, view_mode)}
   end
 
-
   @impl Phoenix.LiveView
   def handle_event("bulk_download", _params, socket) do
     selected_ids = socket.assigns.selected_ids
@@ -289,16 +288,6 @@ defmodule OhdioWeb.LibraryLive do
     ~H"""
     <Layouts.app flash={@flash}>
       <div class="space-y-4" id="library-container" phx-hook="ViewMode">
-        <div class="flex items-center gap-2.5 mb-1">
-          <.icon name="hero-book-open" class="size-7 text-primary" />
-          <div>
-            <h1 class="text-2xl font-bold">Library</h1>
-            <p class="text-sm text-base-content/60">
-              Browse and play your downloaded audiobooks
-            </p>
-          </div>
-        </div>
-
         <%!-- Unified Toolbar --%>
         <div class="card bg-base-100 shadow-sm border border-base-300 transition-all duration-200">
           <div class="card-body p-3">
@@ -383,12 +372,18 @@ defmodule OhdioWeb.LibraryLive do
 
                 <div class="join">
                   <%= if MapSet.size(@selected_ids) == length(@audiobooks) and length(@audiobooks) > 0 do %>
-                    <button phx-click="deselect_all" class="join-item btn btn-sm transition-all duration-150">
+                    <button
+                      phx-click="deselect_all"
+                      class="join-item btn btn-sm transition-all duration-150"
+                    >
                       <.icon name="hero-minus-circle" class="size-4" />
                       <span class="hidden sm:inline ml-1">Deselect</span>
                     </button>
                   <% else %>
-                    <button phx-click="select_all" class="join-item btn btn-sm transition-all duration-150">
+                    <button
+                      phx-click="select_all"
+                      class="join-item btn btn-sm transition-all duration-150"
+                    >
                       <.icon name="hero-check-circle" class="size-4" />
                       <span class="hidden sm:inline ml-1">Select All</span>
                     </button>
@@ -509,8 +504,7 @@ defmodule OhdioWeb.LibraryLive do
                           class="btn btn-xs btn-primary transition-all duration-150 w-full"
                           onclick="event.stopPropagation()"
                         >
-                          <.icon name="hero-arrow-down-tray" class="size-3" />
-                          Download
+                          <.icon name="hero-arrow-down-tray" class="size-3" /> Download
                         </a>
                       <% else %>
                         <span class="text-xs text-base-content/50">File not available</span>

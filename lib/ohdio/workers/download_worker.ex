@@ -129,13 +129,18 @@ defmodule Ohdio.Workers.DownloadWorker do
     url_type = Scraper.detect_url_type(url)
     Logger.debug("Detected URL type: #{inspect(url_type)} for #{url}")
 
-    # For OHdio URLs, extract the actual m3u8 playlist URL first
-    with {:ok, download_url} <- resolve_download_url(url, url_type) do
-      Logger.debug(
-        "Resolved download URL: #{inspect(download_url)}, output: #{inspect(output_path)}"
-      )
+    # Handle Spotify URLs with spotdl
+    if url_type in [:spotify_track, :spotify_playlist, :spotify_album] do
+      execute_spotdl_download(url, output_path, audiobook_id)
+    else
+      # For OHdio URLs, extract the actual m3u8 playlist URL first
+      with {:ok, download_url} <- resolve_download_url(url, url_type) do
+        Logger.debug(
+          "Resolved download URL: #{inspect(download_url)}, output: #{inspect(output_path)}"
+        )
 
-      execute_ytdlp_download(download_url, output_path, audiobook_id)
+        execute_ytdlp_download(download_url, output_path, audiobook_id)
+      end
     end
   rescue
     e ->
@@ -221,6 +226,77 @@ defmodule Ohdio.Workers.DownloadWorker do
       {:error, reason} ->
         Logger.error("Failed to fetch OHdio page: #{inspect(reason)}")
         {:error, :page_fetch_failed}
+    end
+  end
+
+  defp execute_spotdl_download(spotify_url, output_path, audiobook_id) do
+    # Validate inputs are strings
+    unless is_binary(spotify_url) and is_binary(output_path) do
+      Logger.error(
+        "Invalid arguments for spotdl: spotify_url=#{inspect(spotify_url)}, output_path=#{inspect(output_path)}"
+      )
+
+      {:error, :invalid_arguments}
+    else
+      # spotdl downloads to current directory, so we need to specify the output directory
+      output_dir = Path.dirname(output_path)
+
+      # spotdl arguments
+      args = [
+        "download",
+        spotify_url,
+        "--output",
+        output_dir,
+        "--format",
+        "mp3",
+        "--bitrate",
+        "320k"
+      ]
+
+      Logger.info("Starting Spotify download: spotdl #{Enum.join(args, " ")}")
+
+      case System.cmd("spotdl", args, stderr_to_stdout: true) do
+        {output, 0} ->
+          Logger.info("spotdl output: #{output}")
+          broadcast_progress(audiobook_id, :downloading, 50)
+
+          # spotdl creates files with naming pattern: "Artist - Song.mp3"
+          # Find the downloaded files in the output directory
+          case find_latest_files_in_directory(output_dir, ".mp3") do
+            {:ok, [file | _rest]} ->
+              # For now, return the first file (single track or first track of playlist/album)
+              # TODO: In the future, we could handle multiple files better
+              {:ok, file}
+
+            {:ok, []} ->
+              Logger.error("No MP3 files found after spotdl download")
+              {:error, :file_not_found}
+
+            {:error, reason} ->
+              Logger.error("Failed to find downloaded files: #{inspect(reason)}")
+              {:error, :file_not_found}
+          end
+
+        {error, code} ->
+          Logger.error("spotdl download failed (exit #{code}): #{error}")
+          {:error, :download_failed}
+      end
+    end
+  end
+
+  defp find_latest_files_in_directory(directory, extension) do
+    try do
+      files =
+        File.ls!(directory)
+        |> Enum.filter(&String.ends_with?(&1, extension))
+        |> Enum.map(&Path.join(directory, &1))
+        |> Enum.sort_by(&File.stat!(&1).mtime, :desc)
+
+      {:ok, files}
+    rescue
+      e ->
+        Logger.error("Error listing files in #{directory}: #{inspect(e)}")
+        {:error, :directory_read_error}
     end
   end
 
@@ -409,7 +485,7 @@ defmodule Ohdio.Workers.DownloadWorker do
         "Downloaded file not found after completion"
 
       :download_failed ->
-        "yt-dlp download command failed"
+        "Download command failed - possible reasons: invalid URL, region lock, premium content, or network issue"
 
       :download_error ->
         "Unexpected error during download"
@@ -419,6 +495,15 @@ defmodule Ohdio.Workers.DownloadWorker do
 
       :metadata_embed_error ->
         "Unexpected error while embedding metadata"
+
+      :directory_read_error ->
+        "Failed to read download directory after completion"
+
+      :spotify_download_failed ->
+        "Spotify download failed - the track may be region-locked, require premium access, or not be available on YouTube Music"
+
+      :spotify_no_results ->
+        "No matching tracks found on YouTube Music for this Spotify URL"
 
       _ ->
         "Unknown error: #{inspect(error)}"

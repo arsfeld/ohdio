@@ -17,7 +17,7 @@ defmodule OhdioWeb.QueueLive do
 
     {:ok,
      socket
-     |> assign(:page_title, "Download Queue")
+     |> assign(:page_title, "Home")
      |> assign(:form, form)
      |> assign(:loading, false)
      |> assign(:filter_status, nil)
@@ -291,6 +291,34 @@ defmodule OhdioWeb.QueueLive do
               {:error, put_flash(socket, :error, "Failed to add audiobook: #{inspect(reason)}")}
           end
 
+        type when type in [:spotify_track, :spotify_playlist, :spotify_album] ->
+          # Create audiobook and enqueue download
+          spotify_type =
+            case type do
+              :spotify_track -> "track"
+              :spotify_playlist -> "playlist"
+              :spotify_album -> "album"
+            end
+
+          case enqueue_audiobook_download(url, "Spotify #{spotify_type}") do
+            {:ok, _audiobook} ->
+              {:ok,
+               socket
+               |> put_flash(
+                 :info,
+                 "Spotify #{spotify_type} detected! Added to download queue..."
+               )
+               |> reset_form()}
+
+            {:error, reason} ->
+              {:error,
+               put_flash(
+                 socket,
+                 :error,
+                 "Failed to add Spotify #{spotify_type}: #{inspect(reason)}"
+               )}
+          end
+
         :ytdlp_passthrough ->
           # Create audiobook and enqueue metadata extraction
           case enqueue_audiobook_download(url, "Generic Media") do
@@ -427,16 +455,6 @@ defmodule OhdioWeb.QueueLive do
     ~H"""
     <Layouts.app flash={@flash}>
       <div class="space-y-4">
-        <div class="flex items-center gap-2.5 mb-1">
-          <.icon name="hero-musical-note" class="size-7 text-primary" />
-          <div>
-            <h1 class="text-2xl font-bold">OHdio Downloader</h1>
-            <p class="text-sm text-base-content/60">
-              Download audiobooks from OHdio or any yt-dlp compatible URL
-            </p>
-          </div>
-        </div>
-
         <%!-- URL Submission Form --%>
         <div class="card bg-base-100 shadow-sm border border-base-300">
           <div class="card-body p-4">
@@ -568,6 +586,25 @@ defmodule OhdioWeb.QueueLive do
                   </p>
                   <code class="text-xs bg-base-200 px-2 py-0.5 rounded block break-all">
                     https://ici.radio-canada.ca/ohdio/livres-audio/12345/book-title
+                  </code>
+                </div>
+
+                <div class="divider my-1.5" />
+
+                <div>
+                  <h3 class="font-medium text-sm flex items-center gap-1.5 mb-1">
+                    <.icon name="hero-musical-note" class="size-4 text-success" /> Spotify
+                  </h3>
+                  <p class="text-xs text-base-content/60 mb-1.5">
+                    Downloads tracks, playlists, and albums from Spotify (via YouTube Music)
+                  </p>
+                  <div class="flex flex-wrap gap-1.5 text-xs">
+                    <code class="bg-base-200 px-2 py-0.5 rounded">Tracks</code>
+                    <code class="bg-base-200 px-2 py-0.5 rounded">Playlists</code>
+                    <code class="bg-base-200 px-2 py-0.5 rounded">Albums</code>
+                  </div>
+                  <code class="text-xs bg-base-200 px-2 py-0.5 rounded block break-all mt-1.5">
+                    https://open.spotify.com/track/...
                   </code>
                 </div>
 

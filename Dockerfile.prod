@@ -29,8 +29,8 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Install yt-dlp
-RUN pip3 install --no-cache-dir --break-system-packages yt-dlp
+# Install yt-dlp and spotdl for Spotify support
+RUN pip3 install --no-cache-dir --break-system-packages yt-dlp spotdl
 
 # Install Hex and Rebar
 RUN mix local.hex --force && \

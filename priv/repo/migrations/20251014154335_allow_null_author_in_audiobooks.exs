@@ -8,7 +8,8 @@ defmodule Ohdio.Repo.Migrations.AllowNullAuthorInAudiobooks do
     # Create temporary table with correct schema
     create table(:audiobooks_temp) do
       add :title, :string, null: false
-      add :author, :string, null: true  # Changed to allow NULL
+      # Changed to allow NULL
+      add :author, :string, null: true
       add :narrator, :string
       add :url, :string, null: false
       add :cover_image_url, :string
@@ -42,7 +43,8 @@ defmodule Ohdio.Repo.Migrations.AllowNullAuthorInAudiobooks do
     # Reverse: make author NOT NULL again
     create table(:audiobooks_temp) do
       add :title, :string, null: false
-      add :author, :string, null: false  # Back to NOT NULL
+      # Back to NOT NULL
+      add :author, :string, null: false
       add :narrator, :string
       add :url, :string, null: false
       add :cover_image_url, :string
