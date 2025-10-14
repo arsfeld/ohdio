@@ -142,15 +142,16 @@ mix ecto.gen.migration add_field_to_table
 
 ### Helper Scripts
 
-The project includes several helper scripts for debugging and management:
+The project includes several helper scripts in the `scripts/` directory for debugging and management:
 
 - `check_job_errors.exs` - Check for failed Oban jobs
 - `check_queue_state.exs` - View current queue state
 - `enqueue_missing_downloads.exs` - Re-queue items that weren't processed
 - `reset_download_queue.exs` - Reset all queue items to queued state
 - `retry_failed_downloads.exs` - Retry failed downloads
+- `find_bad_urls.exs` - Find and report invalid URLs in the queue
 
-Run scripts with: `./dc mix run <script_name.exs>`
+Run scripts with: `./dc mix run scripts/<script_name.exs>`
 
 ## Architecture
 
