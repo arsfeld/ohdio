@@ -2,7 +2,7 @@ services:
   phoenix:
     build:
       context: .
-      dockerfile: Dockerfile.phoenix
+      dockerfile: Dockerfile
     container_name: ohdio-phoenix-dev
     ports:
       - "4001:4000"  # Phoenix web server (mapped to 4001 to avoid conflict)
@@ -25,8 +25,13 @@ services:
       # Storage paths
       - STORAGE_PATH=/data/downloads
       - LOG_PATH=/data/logs
+      # Download configuration
+      - DOWNLOAD_DIR=/data/downloads
+      - MAX_CONCURRENT_DOWNLOADS=3
+      - MIN_DISK_SPACE_MB=100
+      - MAX_FILE_SIZE_MB=0
     working_dir: /app
-    command: bash -c "mix deps.get && mix ecto.create && mix phx.server"
+    command: bash -c "mix deps.get && mix ecto.create && mix ecto.migrate && mix phx.server"
     stdin_open: true
     tty: true
     restart: unless-stopped

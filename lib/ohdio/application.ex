@@ -15,8 +15,8 @@ defmodule Ohdio.Application do
       {Oban, Application.fetch_env!(:ohdio, Oban)},
       {DNSCluster, query: Application.get_env(:ohdio, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Ohdio.PubSub},
-      # Start a worker by calling: Ohdio.Worker.start_link(arg)
-      # {Ohdio.Worker, arg},
+      # Rate limiter for HTTP requests
+      Ohdio.Scraper.RateLimiter,
       # Start to serve requests, typically the last entry
       OhdioWeb.Endpoint
     ]
@@ -36,7 +36,7 @@ defmodule Ohdio.Application do
   end
 
   defp skip_migrations?() do
-    # By default, sqlite migrations are run when using a release
-    System.get_env("RELEASE_NAME") == nil
+    # Run migrations automatically in all environments
+    false
   end
 end

@@ -1,8 +1,6 @@
 defmodule OhdioWeb.PageControllerTest do
   use OhdioWeb.ConnCase
 
-  test "GET /", %{conn: conn} do
-    conn = get(conn, ~p"/")
-    assert html_response(conn, 200) =~ "Peace of mind from prototype to production"
-  end
+  # Note: The root route now uses HomeLive instead of PageController.
+  # Tests for the home page are in test/ohdio_web/live/home_live_test.exs
 end

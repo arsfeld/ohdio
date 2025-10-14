@@ -51,11 +51,32 @@ config :logger, :default_formatter,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
-# Configure Oban
+# Configure Oban for SQLite
+# Get max concurrent downloads from env or use default
+max_concurrent_downloads = String.to_integer(System.get_env("MAX_CONCURRENT_DOWNLOADS") || "3")
+
 config :ohdio, Oban,
   repo: Ohdio.Repo,
+  engine: Oban.Engines.Lite,
+  notifier: Oban.Notifiers.PG,
   plugins: [Oban.Plugins.Pruner],
-  queues: [default: 10, downloads: 5]
+  queues: [
+    default: 10,
+    scraping: 5,
+    metadata: 10,
+    downloads: max_concurrent_downloads
+  ]
+
+# Download configuration
+config :ohdio, :downloads,
+  # Directory where audiobooks are downloaded
+  output_dir: System.get_env("DOWNLOAD_DIR") || "priv/static/downloads",
+  # Maximum concurrent downloads (controls Oban queue concurrency)
+  max_concurrent: String.to_integer(System.get_env("MAX_CONCURRENT_DOWNLOADS") || "3"),
+  # Minimum free disk space required (in MB)
+  min_disk_space_mb: String.to_integer(System.get_env("MIN_DISK_SPACE_MB") || "100"),
+  # Maximum file size for downloads (in MB, 0 = unlimited)
+  max_file_size_mb: String.to_integer(System.get_env("MAX_FILE_SIZE_MB") || "0")
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

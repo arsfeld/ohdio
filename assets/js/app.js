@@ -25,11 +25,29 @@ import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/ohdio"
 import topbar from "../vendor/topbar"
 
+// Custom hooks
+const Hooks = {}
+
+Hooks.ViewMode = {
+  mounted() {
+    // Load saved view mode from localStorage
+    const savedViewMode = localStorage.getItem("library_view_mode")
+    if (savedViewMode) {
+      this.pushEvent("set_view_mode", {view_mode: savedViewMode})
+    }
+
+    // Save view mode when it changes
+    this.handleEvent("save_view_mode", ({view_mode}) => {
+      localStorage.setItem("library_view_mode", view_mode)
+    })
+  }
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks},
+  hooks: {...colocatedHooks, ...Hooks},
 })
 
 // Show progress bar on live navigation and form submits

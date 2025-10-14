@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Quick helper for Docker Compose operations and running commands in the Phoenix container
+# Usage: ./dc <command>
+#
+# Docker Compose commands (passthrough):
+#   ./dc up -d          # Start services in detached mode
+#   ./dc down           # Stop and remove containers
+#   ./dc logs -f        # Follow logs
+#   ./dc ps             # List containers
+#   ./dc restart        # Restart services
+#
+# Container exec commands:
+#   ./dc mix test
+#   ./dc iex -S mix
+#   ./dc mix ecto.migrate
+#   ./dc bash
+
+# List of Docker Compose commands that should be passed through
+COMPOSE_COMMANDS="up down start stop restart logs ps pull build exec run config"
+
+# Check if the first argument is a compose command
+if [[ " $COMPOSE_COMMANDS " =~ " $1 " ]]; then
+  # Run as docker compose command
+  docker compose "$@"
+else
+  # Run as exec command inside the phoenix container
+  docker compose exec phoenix "$@"
+fi
