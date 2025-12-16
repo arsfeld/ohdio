@@ -45,6 +45,11 @@ WORKDIR /app
 # User/group and permissions will be set by entrypoint
 RUN mkdir -p /app /config/db /config/logs /config/downloads
 
+# Copy entrypoint and utility scripts
+COPY docker-entrypoint.sh /usr/local/bin/
+COPY scripts/yt-dlp-updater.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh /usr/local/bin/yt-dlp-updater.sh
+
 # Copy mix files
 COPY mix.exs mix.lock ./
 
@@ -73,6 +78,9 @@ ENV ERL_AFLAGS="-kernel shell_history enabled" \
 
 # Expose Phoenix port
 EXPOSE 4000
+
+# Use entrypoint for PUID/PGID support and yt-dlp updates
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 # Run database setup and start server
 CMD ["/bin/sh", "-c", "mix ecto.create && mix ecto.migrate && mix phx.server"]

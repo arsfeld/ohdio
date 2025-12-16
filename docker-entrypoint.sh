@@ -1,6 +1,14 @@
 #!/bin/bash
 set -e
 
+# Update yt-dlp on startup and start background updater
+if [ -x /usr/local/bin/yt-dlp-updater.sh ]; then
+    echo "Updating yt-dlp..."
+    /usr/local/bin/yt-dlp-updater.sh
+    # Start background daemon for daily updates
+    nohup /usr/local/bin/yt-dlp-updater.sh --daemon > /config/logs/yt-dlp-updater.log 2>&1 &
+fi
+
 # linuxserver.io style PUID/PGID support
 # Default to 1000:1000 if not set
 PUID=${PUID:-1000}

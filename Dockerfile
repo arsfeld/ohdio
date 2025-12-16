@@ -50,9 +50,10 @@ WORKDIR /app
 # User/group and permissions will be set by entrypoint
 RUN mkdir -p /app /config/db /config/logs /config/downloads
 
-# Copy entrypoint script
+# Copy entrypoint and utility scripts
 COPY docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+COPY scripts/yt-dlp-updater.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh /usr/local/bin/yt-dlp-updater.sh
 
 # Set environment variables
 ENV MIX_ENV=dev \
