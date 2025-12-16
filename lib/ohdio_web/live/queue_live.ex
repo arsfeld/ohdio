@@ -21,7 +21,7 @@ defmodule OhdioWeb.QueueLive do
      |> assign(:form, form)
      |> assign(:loading, false)
      |> assign(:filter_status, nil)
-     |> assign(:sort_by, :priority)
+     |> assign(:sort_by, :inserted_at)
      |> assign(:sort_order, :desc)
      |> assign(:show_url_types, false)
      |> load_queue_data()
@@ -399,12 +399,23 @@ defmodule OhdioWeb.QueueLive do
            status: :pending
          }) do
       {:ok, audiobook} ->
-        # Enqueue metadata extraction job
-        case %{audiobook_id: audiobook.id, url: url}
-             |> MetadataExtractWorker.new()
-             |> Oban.insert() do
-          {:ok, _job} -> {:ok, audiobook}
-          {:error, reason} -> {:error, reason}
+        # Create queue item immediately so it shows in the UI right away
+        case Downloads.create_queue_item(%{
+               audiobook_id: audiobook.id,
+               status: :queued,
+               priority: 5
+             }) do
+          {:ok, _queue_item} ->
+            # Enqueue metadata extraction job
+            case %{audiobook_id: audiobook.id, url: url}
+                 |> MetadataExtractWorker.new()
+                 |> Oban.insert() do
+              {:ok, _job} -> {:ok, audiobook}
+              {:error, reason} -> {:error, reason}
+            end
+
+          {:error, reason} ->
+            {:error, reason}
         end
 
       {:error, changeset} ->
@@ -669,77 +680,111 @@ defmodule OhdioWeb.QueueLive do
         <div class="card bg-base-100 border border-base-300 shadow-sm">
           <div class="card-body p-3">
             <div class="flex flex-wrap items-center gap-3 justify-between">
-              <div class="flex flex-wrap gap-1.5">
-                <.button
+              <%!-- Filter Buttons (Segmented Control) --%>
+              <div class="join">
+                <button
                   phx-click="filter_status"
                   phx-value-status="all"
-                  variant={if @filter_status == nil, do: "primary", else: nil}
-                  class={if @filter_status != nil, do: "btn-sm btn-outline", else: "btn-sm"}
+                  class={[
+                    "btn btn-sm join-item",
+                    if(@filter_status == nil, do: "btn-active", else: "")
+                  ]}
                 >
                   All
-                </.button>
-                <.button
+                </button>
+                <button
                   phx-click="filter_status"
                   phx-value-status="queued"
-                  variant={if @filter_status == :queued, do: "primary", else: nil}
-                  class={if @filter_status != :queued, do: "btn-sm btn-outline", else: "btn-sm"}
+                  class={[
+                    "btn btn-sm join-item",
+                    if(@filter_status == :queued, do: "btn-active", else: "")
+                  ]}
                 >
-                  Queued
-                </.button>
-                <.button
+                  <.icon name="hero-clock" class="size-3.5" />
+                  <span class="hidden sm:inline">Queued</span>
+                </button>
+                <button
                   phx-click="filter_status"
                   phx-value-status="processing"
-                  variant={if @filter_status == :processing, do: "primary", else: nil}
-                  class={if @filter_status != :processing, do: "btn-sm btn-outline", else: "btn-sm"}
+                  class={[
+                    "btn btn-sm join-item",
+                    if(@filter_status == :processing, do: "btn-active", else: "")
+                  ]}
                 >
-                  Processing
-                </.button>
-                <.button
+                  <.icon name="hero-arrow-path" class="size-3.5" />
+                  <span class="hidden sm:inline">Processing</span>
+                </button>
+                <button
                   phx-click="filter_status"
                   phx-value-status="completed"
-                  variant={if @filter_status == :completed, do: "primary", else: nil}
-                  class={if @filter_status != :completed, do: "btn-sm btn-outline", else: "btn-sm"}
+                  class={[
+                    "btn btn-sm join-item",
+                    if(@filter_status == :completed, do: "btn-active", else: "")
+                  ]}
                 >
-                  Completed
-                </.button>
-                <.button
+                  <.icon name="hero-check-circle" class="size-3.5" />
+                  <span class="hidden sm:inline">Completed</span>
+                </button>
+                <button
                   phx-click="filter_status"
                   phx-value-status="failed"
-                  variant={if @filter_status == :failed, do: "primary", else: nil}
-                  class={if @filter_status != :failed, do: "btn-sm btn-outline", else: "btn-sm"}
+                  class={[
+                    "btn btn-sm join-item",
+                    if(@filter_status == :failed, do: "btn-active", else: "")
+                  ]}
                 >
-                  Failed
-                </.button>
+                  <.icon name="hero-x-circle" class="size-3.5" />
+                  <span class="hidden sm:inline">Failed</span>
+                </button>
               </div>
 
-              <div class="flex flex-wrap gap-1.5">
-                <.button
+              <%!-- Action Buttons --%>
+              <div class="flex items-center gap-2">
+                <%!-- Pause/Resume Toggle --%>
+                <button
                   :if={!@control.is_paused}
                   phx-click="pause_all"
-                  class="btn-sm btn-warning"
+                  class="btn btn-sm btn-warning gap-1.5"
                 >
-                  <.icon name="hero-pause" class="size-4" /> Pause All
-                </.button>
-                <.button
+                  <.icon name="hero-pause" class="size-4" />
+                  <span class="hidden sm:inline">Pause</span>
+                </button>
+                <button
                   :if={@control.is_paused}
                   phx-click="resume_all"
-                  class="btn-sm btn-success"
+                  class="btn btn-sm btn-success gap-1.5"
                 >
-                  <.icon name="hero-play" class="size-4" /> Resume All
-                </.button>
-                <.button
-                  phx-click="clear_completed"
-                  class="btn-sm btn-outline"
-                >
-                  <.icon name="hero-trash" class="size-4" /> Clear Completed
-                </.button>
-                <.button
-                  phx-click="clear_queue"
-                  class="btn-sm btn-outline"
-                  data-confirm="Are you sure you want to clear the entire queue?"
-                >
-                  <.icon name="hero-trash" class="size-4" /> Clear All
-                </.button>
+                  <.icon name="hero-play" class="size-4" />
+                  <span class="hidden sm:inline">Resume</span>
+                </button>
+
+                <%!-- Clear Actions Dropdown --%>
+                <div class="dropdown dropdown-end">
+                  <div tabindex="0" role="button" class="btn btn-sm btn-ghost gap-1.5">
+                    <.icon name="hero-trash" class="size-4" />
+                    <span class="hidden sm:inline">Clear</span>
+                    <.icon name="hero-chevron-down" class="size-3" />
+                  </div>
+                  <ul
+                    tabindex="0"
+                    class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow-lg border border-base-300"
+                  >
+                    <li>
+                      <button phx-click="clear_completed" class="justify-start">
+                        <.icon name="hero-check" class="size-4" /> Clear Completed
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        phx-click="clear_queue"
+                        class="justify-start text-error"
+                        data-confirm="Are you sure you want to clear the entire queue?"
+                      >
+                        <.icon name="hero-trash" class="size-4" /> Clear All
+                      </button>
+                    </li>
+                  </ul>
+                </div>
               </div>
             </div>
           </div>
