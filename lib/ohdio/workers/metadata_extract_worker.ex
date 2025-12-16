@@ -17,14 +17,15 @@ defmodule Ohdio.Workers.MetadataExtractWorker do
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"audiobook_id" => audiobook_id, "url" => url}}) do
     audiobook = Library.get_audiobook!(audiobook_id)
+    # Get existing queue item (created when URL was submitted)
+    queue_item = Repo.get_by(Downloads.QueueItem, audiobook_id: audiobook_id)
 
     case extract_metadata(url, audiobook) do
       {:ok, updated_audiobook} ->
-        # Get or create queue item
+        # Ensure queue item exists (fallback for legacy jobs or category scrapes)
         queue_item =
-          case Repo.get_by(Downloads.QueueItem, audiobook_id: updated_audiobook.id) do
+          case queue_item do
             nil ->
-              # Create new queue item
               {:ok, qi} =
                 Downloads.create_queue_item(%{
                   audiobook_id: updated_audiobook.id,
@@ -35,7 +36,6 @@ defmodule Ohdio.Workers.MetadataExtractWorker do
               qi
 
             existing_item ->
-              # Use existing queue item (created by CategoryScrapeWorker)
               existing_item
           end
 
@@ -56,9 +56,21 @@ defmodule Ohdio.Workers.MetadataExtractWorker do
 
       {:error, reason} ->
         Library.update_audiobook(audiobook, %{status: :failed})
+
+        # Mark queue item as failed so user sees the error in the UI
+        if queue_item do
+          Downloads.update_queue_item(queue_item, %{
+            status: :failed,
+            error_message: format_error(reason)
+          })
+        end
+
         {:error, reason}
     end
   end
+
+  defp format_error(reason) when is_atom(reason), do: Atom.to_string(reason) |> String.replace("_", " ")
+  defp format_error(reason), do: inspect(reason)
 
   defp extract_metadata(url, audiobook) do
     url_type = Scraper.detect_url_type(url)
@@ -66,6 +78,9 @@ defmodule Ohdio.Workers.MetadataExtractWorker do
     case url_type do
       type when type in [:ohdio_audiobook, :ohdio_category] ->
         extract_ohdio_metadata(url, audiobook)
+
+      type when type in [:spotify_track, :spotify_playlist, :spotify_album] ->
+        extract_spotify_metadata(url, audiobook)
 
       :ytdlp_passthrough ->
         extract_ytdlp_metadata(url, audiobook)
@@ -94,6 +109,51 @@ defmodule Ohdio.Workers.MetadataExtractWorker do
 
         extract_ytdlp_metadata(url, audiobook)
     end
+  end
+
+  defp extract_spotify_metadata(url, audiobook) do
+    # Create a temp file for spotdl output
+    temp_file = Path.join(System.tmp_dir!(), "spotdl_#{audiobook.id}.spotdl")
+
+    try do
+      case System.cmd("spotdl", ["save", url, "--save-file", temp_file], stderr_to_stdout: true) do
+        {_output, 0} ->
+          case File.read(temp_file) do
+            {:ok, content} ->
+              case Jason.decode(content) do
+                {:ok, [first_track | _]} ->
+                  Library.update_audiobook(audiobook, %{
+                    title: first_track["name"] || audiobook.title,
+                    author: first_track["artist"] || audiobook.author,
+                    duration: first_track["duration"],
+                    cover_image_url: first_track["cover_url"] || audiobook.cover_image_url
+                  })
+
+                {:ok, []} ->
+                  Logger.error("spotdl returned empty track list for #{url}")
+                  {:error, :spotify_no_tracks}
+
+                {:error, decode_error} ->
+                  Logger.error("Failed to parse spotdl output: #{inspect(decode_error)}")
+                  {:error, :spotify_parse_failed}
+              end
+
+            {:error, read_error} ->
+              Logger.error("Failed to read spotdl output file: #{inspect(read_error)}")
+              {:error, :spotify_read_failed}
+          end
+
+        {error, _code} ->
+          Logger.error("spotdl metadata extraction failed for #{url}: #{error}")
+          {:error, :spotify_failed}
+      end
+    after
+      File.rm(temp_file)
+    end
+  rescue
+    e ->
+      Logger.error("Error extracting Spotify metadata: #{inspect(e)}")
+      {:error, :spotify_error}
   end
 
   defp extract_ytdlp_metadata(url, audiobook) do

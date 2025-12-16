@@ -85,12 +85,8 @@ defmodule Ohdio.Workers.DownloadWorker do
   end
 
   defp perform_download(queue_item, audiobook) do
-    # Sanitize filename
-    sanitized_title =
-      audiobook.title
-      |> String.replace(~r/[^\w\s-]/, "")
-      |> String.replace(~r/\s+/, "_")
-      |> String.slice(0, 200)
+    # Sanitize filename - ASCII only to avoid encoding issues
+    sanitized_title = sanitize_filename(audiobook.title)
 
     output_path = Path.join(download_dir(), "#{sanitized_title}.mp3")
 
@@ -102,19 +98,43 @@ defmodule Ohdio.Workers.DownloadWorker do
           :ok ->
             file_size = File.stat!(final_path).size
 
-            # Update records
-            Library.update_audiobook(audiobook, %{
+            # Update both records atomically - audiobook first, then queue item
+            # Use a transaction to ensure consistency
+            # Include default author if missing (required for non-pending status)
+            update_attrs = %{
               status: :completed,
               file_path: final_path,
               file_size: file_size
-            })
+            }
 
-            Downloads.update_queue_item(queue_item, %{status: :completed})
+            update_attrs =
+              if is_nil(audiobook.author) or audiobook.author == "" do
+                Map.put(update_attrs, :author, "Unknown")
+              else
+                update_attrs
+              end
 
-            # Broadcast completion
-            broadcast_progress(audiobook.id, :completed, 100)
+            result =
+              Repo.transaction(fn ->
+                case Library.update_audiobook(audiobook, update_attrs) do
+                  {:ok, _} ->
+                    Downloads.update_queue_item(queue_item, %{status: :completed})
 
-            {:ok, %{file_path: final_path, file_size: file_size}}
+                  {:error, changeset} ->
+                    Repo.rollback(changeset)
+                end
+              end)
+
+            case result do
+              {:ok, _} ->
+                # Broadcast completion
+                broadcast_progress(audiobook.id, :completed, 100)
+                {:ok, %{file_path: final_path, file_size: file_size}}
+
+              {:error, reason} ->
+                Logger.error("Failed to update records after download: #{inspect(reason)}")
+                handle_error(queue_item, audiobook, :record_update_failed)
+            end
 
           {:error, reason} ->
             handle_error(queue_item, audiobook, reason)
@@ -124,6 +144,35 @@ defmodule Ohdio.Workers.DownloadWorker do
         handle_error(queue_item, audiobook, reason)
     end
   end
+
+  # Sanitize filename to ASCII-only characters to avoid encoding issues
+  defp sanitize_filename(title) do
+    title
+    # Normalize Unicode to decomposed form, then remove non-ASCII
+    |> String.normalize(:nfd)
+    |> String.replace(~r/[^\x00-\x7F]/, "")
+    # Keep only alphanumeric, spaces, and hyphens
+    |> String.replace(~r/[^a-zA-Z0-9\s-]/, "")
+    # Replace whitespace with underscores
+    |> String.replace(~r/\s+/, "_")
+    # Remove consecutive underscores
+    |> String.replace(~r/_+/, "_")
+    # Trim underscores from ends
+    |> String.trim("_")
+    # Limit length
+    |> String.slice(0, 200)
+    # Fallback if empty
+    |> then(fn s -> if s == "", do: "untitled", else: s end)
+  end
+
+  # Sanitize string for safe logging (removes non-printable and problematic Unicode)
+  defp sanitize_for_logging(str) when is_binary(str) do
+    str
+    |> String.replace(~r/[^\x20-\x7E]/, "")
+    |> String.slice(0, 100)
+  end
+
+  defp sanitize_for_logging(nil), do: ""
 
   defp download_audiobook(url, output_path, audiobook_id) do
     url_type = Scraper.detect_url_type(url)
@@ -317,7 +366,8 @@ defmodule Ohdio.Workers.DownloadWorker do
       temp_path
     ]
 
-    Logger.info("Embedding metadata: ffmpeg #{Enum.join(args, " ")}")
+    # Log with sanitized title to avoid JSON encoding issues with emoji
+    Logger.info("Embedding metadata for: #{sanitize_for_logging(audiobook.title)}")
 
     case System.cmd("ffmpeg", args, stderr_to_stdout: true) do
       {_output, 0} ->
@@ -504,6 +554,9 @@ defmodule Ohdio.Workers.DownloadWorker do
 
       :spotify_no_results ->
         "No matching tracks found on YouTube Music for this Spotify URL"
+
+      :record_update_failed ->
+        "Failed to update database records after successful download"
 
       _ ->
         "Unknown error: #{inspect(error)}"
