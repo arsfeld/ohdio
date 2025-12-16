@@ -43,6 +43,7 @@ docs/
 backlog/
 archive/
 scripts/
+!scripts/yt-dlp-updater.sh
 *.md
 !README.md
 
