@@ -1,63 +1,37 @@
 # Phoenix Production Dockerfile for OHdio
-# Based on Elixir 1.17 with Erlang/OTP 27
+# Multi-stage build with release for production
 
-FROM hexpm/elixir:1.17.3-erlang-27.1.2-debian-bookworm-20241016-slim
+# Build stage
+FROM hexpm/elixir:1.17.3-erlang-27.1.2-debian-bookworm-20241016-slim AS builder
 
-# Install dependencies
+# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Build essentials
     build-essential \
     git \
     curl \
-    # Node.js for Phoenix assets (via NodeSource)
     ca-certificates \
     gnupg \
-    # SQLite3
-    sqlite3 \
-    libsqlite3-dev \
-    # FFmpeg for audio processing
-    ffmpeg \
-    # yt-dlp dependencies
-    python3 \
-    python3-pip \
-    # gosu for user switching (linuxserver.io convention)
-    gosu \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js 20.x (LTS)
+# Install Node.js 20.x (LTS) for assets
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
-
-# Install yt-dlp (latest binary from GitHub) and spotdl for Spotify support
-RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
-    && chmod a+rx /usr/local/bin/yt-dlp \
-    && pip3 install --no-cache-dir --break-system-packages spotdl
 
 # Install Hex and Rebar
 RUN mix local.hex --force && \
     mix local.rebar --force
 
-# Create app directory
 WORKDIR /app
 
-# Create directories for config (linuxserver.io convention)
-# User/group and permissions will be set by entrypoint
-RUN mkdir -p /app /config/db /config/logs /config/downloads
+# Set build-time environment
+ENV MIX_ENV=prod
 
-# Copy entrypoint and utility scripts
-COPY docker-entrypoint.sh yt-dlp-updater.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh /usr/local/bin/yt-dlp-updater.sh
-
-# Copy mix files
+# Copy mix files first for better caching
 COPY mix.exs mix.lock ./
 
-# Set build-time environment
-ARG MIX_ENV=prod
-ENV MIX_ENV=${MIX_ENV}
-
-# Install mix dependencies
-RUN mix deps.get --only $MIX_ENV
+# Install dependencies
+RUN mix deps.get --only prod
 RUN mix deps.compile
 
 # Copy application code
@@ -66,14 +40,58 @@ COPY priv ./priv
 COPY lib ./lib
 COPY assets ./assets
 
-# Compile the application and assets
-RUN mix compile
+# Compile assets and application
 RUN mix assets.deploy
+RUN mix compile
+
+# Build release
+RUN mix release
+
+# Runtime stage
+FROM debian:bookworm-slim AS runtime
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Required for Erlang
+    libncurses6 \
+    libstdc++6 \
+    openssl \
+    ca-certificates \
+    # SQLite3
+    sqlite3 \
+    libsqlite3-0 \
+    # FFmpeg for audio processing
+    ffmpeg \
+    # yt-dlp dependencies
+    python3 \
+    python3-pip \
+    # gosu for user switching (linuxserver.io convention)
+    gosu \
+    # curl for yt-dlp updates
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install yt-dlp (latest binary from GitHub) and spotdl for Spotify support
+RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
+    && chmod a+rx /usr/local/bin/yt-dlp \
+    && pip3 install --no-cache-dir --break-system-packages spotdl
+
+WORKDIR /app
+
+# Create directories for config (linuxserver.io convention)
+RUN mkdir -p /app /config/db /config/logs /config/downloads
+
+# Copy entrypoint and utility scripts
+COPY docker-entrypoint.sh yt-dlp-updater.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh /usr/local/bin/yt-dlp-updater.sh
+
+# Copy release from builder
+COPY --from=builder /app/_build/prod/rel/ohdio ./
 
 # Set runtime environment variables
-ENV ERL_AFLAGS="-kernel shell_history enabled" \
-    LANG=C.UTF-8 \
-    TERM=xterm
+ENV LANG=C.UTF-8 \
+    TERM=xterm \
+    PHX_SERVER=true
 
 # Expose Phoenix port
 EXPOSE 4000
@@ -81,5 +99,5 @@ EXPOSE 4000
 # Use entrypoint for PUID/PGID support and yt-dlp updates
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
-# Run database setup and start server
-CMD ["/bin/sh", "-c", "mix ecto.create && mix ecto.migrate && mix phx.server"]
+# Run migrations and start the release
+CMD ["/bin/sh", "-c", "/app/bin/ohdio eval 'Ohdio.Release.migrate()' && /app/bin/ohdio start"]

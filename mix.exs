@@ -10,8 +10,27 @@ defmodule Ohdio.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
-      compilers: [:phoenix_live_view] ++ Mix.compilers(),
-      listeners: [Phoenix.CodeReloader]
+      releases: releases()
+    ] ++ dev_config()
+  end
+
+  # Development-only configuration
+  defp dev_config do
+    if Mix.env() == :dev do
+      [
+        compilers: [:phoenix_live_view] ++ Mix.compilers(),
+        listeners: [Phoenix.CodeReloader]
+      ]
+    else
+      []
+    end
+  end
+
+  defp releases do
+    [
+      ohdio: [
+        include_executables_for: [:unix]
+      ]
     ]
   end
 
